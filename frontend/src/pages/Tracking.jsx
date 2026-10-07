@@ -20,33 +20,35 @@ export default function Tracking() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [empRes, geoRes, bldgRes] = await Promise.all([
-          api.get('/employees'),
-          api.get('/geofences'),
-          api.get('/buildings') // Just fetching buildings to trigger floors/rooms if needed, but for simplicity let's fetch all floors/rooms
-        ]);
-
-        if (empRes.data.success && empRes.data.employees.length > 0) {
+        const empRes = await api.get('/employees');
+        if (empRes.data && empRes.data.success && Array.isArray(empRes.data.employees) && empRes.data.employees.length > 0) {
           setEmployees(empRes.data.employees);
           setSelectedEmpId(empRes.data.employees[0].employeeId);
         }
-        if (geoRes.data.success && geoRes.data.geofences.length > 0) {
+      } catch (err) {
+        console.error('[Tracking Employees Fetch Error]:', err);
+      }
+
+      try {
+        const geoRes = await api.get('/geofences');
+        if (geoRes.data && geoRes.data.success && Array.isArray(geoRes.data.geofences) && geoRes.data.geofences.length > 0) {
           setGeofence(geoRes.data.geofences[0]);
         }
-        
-        // Fetch all rooms from ALL floors of the first building
-        if (bldgRes.data.success && bldgRes.data.data.length > 0) {
+      } catch (err) {
+        console.error('[Tracking Geofence Fetch Error]:', err);
+      }
+
+      try {
+        const bldgRes = await api.get('/buildings');
+        if (bldgRes.data && bldgRes.data.success && Array.isArray(bldgRes.data.data) && bldgRes.data.data.length > 0) {
           const firstBldgId = bldgRes.data.data[0]._id;
           const floorRes = await api.get(`/buildings/${firstBldgId}/floors`);
           
-          if (floorRes.data.success && floorRes.data.data.length > 0) {
+          if (floorRes.data && floorRes.data.success && Array.isArray(floorRes.data.data) && floorRes.data.data.length > 0) {
             let allRooms = [];
-            
-            // Loop through every floor to get its rooms
             for (const floor of floorRes.data.data) {
               const roomRes = await api.get(`/buildings/floors/${floor._id}/rooms`);
-              if (roomRes.data.success) {
-                // Attach the floor level to each room so the 3D renderer knows how high to stack them
+              if (roomRes.data && roomRes.data.success && Array.isArray(roomRes.data.data)) {
                 const roomsWithFloor = roomRes.data.data.map(r => ({
                   ...r,
                   floorLevel: floor.level
@@ -54,12 +56,11 @@ export default function Tracking() {
                 allRooms = [...allRooms, ...roomsWithFloor];
               }
             }
-            
             setRooms(allRooms);
           }
         }
       } catch (err) {
-        console.error('[Tracking Fetch Error]:', err);
+        console.error('[Tracking Buildings Fetch Error]:', err);
       }
     };
     fetchData();

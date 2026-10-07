@@ -12,8 +12,12 @@ export default function Employees() {
 
   const fetchEmployees = async () => {
     try {
-      const res = await api.get(`/employees?search=${search}&department=${selectedDept}`);
-      if (res.data.success) {
+      const query = new URLSearchParams();
+      if (search) query.append('search', search);
+      if (selectedDept) query.append('department', selectedDept);
+      
+      const res = await api.get(`/employees?${query.toString()}`);
+      if (res.data && res.data.success && Array.isArray(res.data.employees)) {
         setEmployees(res.data.employees);
       }
     } catch (err) {

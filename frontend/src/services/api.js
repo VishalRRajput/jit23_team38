@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || '';
+const DEFAULT_BACKEND_URL = 'https://employee-tracking-backend-xzii.onrender.com';
+const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || (import.meta.env.PROD ? DEFAULT_BACKEND_URL : '');
 const baseURL = backendUrl ? `${backendUrl.replace(/\/$/, '')}/api` : '/api';
 
 const api = axios.create({
