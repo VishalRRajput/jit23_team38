@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Search, User, Shield, Radio, Cpu } from 'lucide-react';
+import { Bell, Search, User, Shield, Radio, Cpu, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useNavigate } from 'react-router-dom';
 
 export default function Navbar({ onToggleNotifications }) {
-  const { admin } = useAuth();
+  const { admin, logout } = useAuth();
   const { unreadNotificationsCount } = useSocket();
   const navigate = useNavigate();
   const [timeStr, setTimeStr] = useState('');
@@ -76,6 +76,18 @@ export default function Navbar({ onToggleNotifications }) {
             <p className="text-[10px] text-gray-400 capitalize">{admin?.role || 'Super Admin'}</p>
           </div>
         </div>
+
+        {/* Quick Sign Out Button */}
+        <button
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
+          className="p-2 rounded-lg bg-gray-900/80 border border-gray-800 text-gray-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/20 transition-all cursor-pointer"
+          title="Sign Out"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
       </div>
     </header>
   );

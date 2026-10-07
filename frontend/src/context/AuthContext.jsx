@@ -10,42 +10,50 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      if (token) {
-        try {
-          const res = await api.get('/auth/profile');
-          if (res.data.success) {
-            setAdmin(res.data.admin);
-          }
-        } catch (err) {
-          console.error('[AuthContext] Session verification failed, using dev fallback.');
-          // Provide fallback admin state for seamless demo experience
-          const cachedAdmin = localStorage.getItem('admin');
-          if (cachedAdmin) {
-            setAdmin(JSON.parse(cachedAdmin));
-          } else {
-            const mockAdmin = {
-              id: 'admin_demo_id',
-              name: 'Corporate Chief Admin',
-              email: 'admin@company.com',
-              role: 'superadmin',
-              department: 'Executive Operations',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
-            };
-            setAdmin(mockAdmin);
-            localStorage.setItem('admin', JSON.stringify(mockAdmin));
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        // If it's a demo token, load cached admin directly
+        if (storedToken === 'mock_jwt_token_demo_mode_2026') {
+          const cached = localStorage.getItem('admin');
+          if (cached) {
+            try {
+              setAdmin(JSON.parse(cached));
+              setToken(storedToken);
+              setLoading(false);
+              return;
+            } catch (e) {}
           }
         }
+
+        try {
+          const res = await api.get('/auth/profile');
+          if (res.data && res.data.success && res.data.admin) {
+            setAdmin(res.data.admin);
+            setToken(storedToken);
+          } else {
+            throw new Error('Invalid session');
+          }
+        } catch (err) {
+          console.warn('[AuthContext] Session expired or invalid. Please sign in.');
+          localStorage.removeItem('token');
+          localStorage.removeItem('admin');
+          setToken(null);
+          setAdmin(null);
+        }
+      } else {
+        setToken(null);
+        setAdmin(null);
       }
       setLoading(false);
     };
 
     initAuth();
-  }, [token]);
+  }, []);
 
   const login = async (email, password) => {
     try {
       const res = await api.post('/auth/login', { email, password });
-      if (res.data.success) {
+      if (res.data && res.data.success) {
         const { token: newToken, admin: adminData } = res.data;
         localStorage.setItem('token', newToken);
         localStorage.setItem('admin', JSON.stringify(adminData));
@@ -53,23 +61,53 @@ export const AuthProvider = ({ children }) => {
         setAdmin(adminData);
         return { success: true };
       }
+      return { success: false, message: res.data?.message || 'Login failed' };
     } catch (err) {
-      // Demo login fallback if server offline
-      const mockAdmin = {
-        id: 'admin_demo_id',
-        name: 'Corporate Chief Admin',
-        email: email || 'admin@company.com',
-        role: 'superadmin',
-        department: 'Executive Operations',
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
-      };
-      const mockToken = 'mock_jwt_token_demo_mode_2026';
-      localStorage.setItem('token', mockToken);
-      localStorage.setItem('admin', JSON.stringify(mockAdmin));
-      setToken(mockToken);
-      setAdmin(mockAdmin);
-      return { success: true };
+      if (err.response && err.response.data && err.response.data.message) {
+        return { success: false, message: err.response.data.message };
+      }
+      return { success: false, message: 'Backend unreachable. Ensure server is online or use 1-Click Demo Login.' };
     }
+  };
+
+  const register = async (name, email, password, department = 'Management') => {
+    try {
+      const res = await api.post('/auth/register', { name, email, password, department });
+      if (res.data && res.data.success) {
+        const { token: newToken, admin: adminData } = res.data;
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('admin', JSON.stringify(adminData));
+        setToken(newToken);
+        setAdmin(adminData);
+        return { success: true };
+      }
+      return { success: false, message: res.data?.message || 'Registration failed' };
+    } catch (err) {
+      if (err.response && err.response.data && err.response.data.message) {
+        return { success: false, message: err.response.data.message };
+      }
+      return { success: false, message: 'Backend unreachable. Ensure server is online.' };
+    }
+  };
+
+  const loginDemo = (role = 'superadmin') => {
+    const isSuper = role === 'superadmin';
+    const mockAdmin = {
+      id: isSuper ? 'admin_demo_super' : 'admin_demo_sec',
+      name: isSuper ? 'Corporate Chief Admin' : 'Security Command Officer',
+      email: isSuper ? 'admin@company.com' : 'security@company.com',
+      role: isSuper ? 'superadmin' : 'operator',
+      department: isSuper ? 'Executive Operations' : 'Campus Security',
+      avatar: isSuper
+        ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200'
+        : 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200'
+    };
+    const mockToken = 'mock_jwt_token_demo_mode_2026';
+    localStorage.setItem('token', mockToken);
+    localStorage.setItem('admin', JSON.stringify(mockAdmin));
+    setToken(mockToken);
+    setAdmin(mockAdmin);
+    return { success: true };
   };
 
   const logout = () => {
@@ -80,7 +118,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ admin, token, loading, login, logout, setAdmin }}>
+    <AuthContext.Provider value={{ admin, token, loading, login, register, loginDemo, logout, setAdmin }}>
       {children}
     </AuthContext.Provider>
   );

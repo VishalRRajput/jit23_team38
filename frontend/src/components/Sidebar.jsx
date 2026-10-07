@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   Wifi,
-  Radio
+  Radio,
+  Building
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -29,6 +30,7 @@ export default function Sidebar() {
     { name: 'AI Analytics', path: '/ai-analytics', icon: BrainCircuit },
     { name: 'Reports Export', path: '/reports', icon: FileSpreadsheet },
     { name: 'Notifications', path: '/notifications', icon: Bell },
+    { name: 'Building Designer', path: '/designer', icon: Building },
     { name: 'System Settings', path: '/settings', icon: Settings },
   ];
 

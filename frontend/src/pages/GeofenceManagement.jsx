@@ -103,31 +103,7 @@ export default function GeofenceManagement() {
               </div>
             </div>
 
-            {/* Registered WiFi BSSID Signatures */}
-            <div>
-              <span className="text-xs font-semibold text-gray-300 flex items-center gap-1.5 mb-2">
-                <Wifi className="w-3.5 h-3.5 text-cyan-400" /> Registered Office WiFi Signatures
-              </span>
-              <div className="space-y-1.5">
-                {geo.officeWifiBSSIDs && geo.officeWifiBSSIDs.length > 0 ? (
-                  geo.officeWifiBSSIDs.map((wifi, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-gray-900/60 border border-gray-800 text-xs font-mono">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-gray-200">{wifi.ssid || 'Office_WiFi'}</span>
-                        {wifi.roomName && (
-                          <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded w-fit">
-                            {wifi.roomName}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-cyan-400">{wifi.bssid}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-[11px] text-gray-500 italic">No WiFi BSSIDs registered yet</div>
-                )}
-              </div>
-            </div>
+
 
             {/* Actions */}
             <div className="flex items-center justify-end space-x-2 pt-2 border-t border-gray-800/80">

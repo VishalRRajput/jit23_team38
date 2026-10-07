@@ -7,9 +7,6 @@ export default function GeofenceModal({ isOpen, onClose, onSave, geofence = null
     latitude: 37.774929,
     longitude: -122.419416,
     radiusMeters: 200,
-    officeWifiBSSID: 'AA:BB:CC:DD:EE:01',
-    officeWifiSSID: 'Office_WiFi_Network',
-    roomName: '',
     description: '',
     status: 'Active'
   });
@@ -21,9 +18,6 @@ export default function GeofenceModal({ isOpen, onClose, onSave, geofence = null
         latitude: geofence.latitude || 37.774929,
         longitude: geofence.longitude || -122.419416,
         radiusMeters: geofence.radiusMeters || 200,
-        officeWifiBSSID: geofence.officeWifiBSSIDs?.[0]?.bssid || 'AA:BB:CC:DD:EE:01',
-        officeWifiSSID: geofence.officeWifiBSSIDs?.[0]?.ssid || 'Office_WiFi_Network',
-        roomName: geofence.officeWifiBSSIDs?.[0]?.roomName || '',
         description: geofence.description || '',
         status: geofence.status || 'Active'
       });
@@ -35,10 +29,7 @@ export default function GeofenceModal({ isOpen, onClose, onSave, geofence = null
   const handleSubmit = (e) => {
     e.preventDefault();
     const payload = {
-      ...formData,
-      officeWifiBSSIDs: [
-        { ssid: formData.officeWifiSSID, bssid: formData.officeWifiBSSID, roomName: formData.roomName, minRssi: -85 }
-      ]
+      ...formData
     };
     onSave(payload);
   };
@@ -107,41 +98,7 @@ export default function GeofenceModal({ isOpen, onClose, onSave, geofence = null
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800">
-            <div>
-              <label className="block text-gray-400 mb-1 flex items-center gap-1">
-                <Wifi className="w-3 h-3 text-cyan-400" /> Office WiFi SSID
-              </label>
-              <input
-                type="text"
-                value={formData.officeWifiSSID}
-                onChange={(e) => setFormData({ ...formData, officeWifiSSID: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-                placeholder="Office_WiFi_Network"
-              />
-            </div>
-            <div>
-              <label className="block text-gray-400 mb-1 font-mono">WiFi BSSID (MAC)</label>
-              <input
-                type="text"
-                value={formData.officeWifiBSSID}
-                onChange={(e) => setFormData({ ...formData, officeWifiBSSID: e.target.value })}
-                className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 font-mono"
-                placeholder="AA:BB:CC:DD:EE:01"
-              />
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-gray-400 mb-1 text-emerald-400 font-bold">Room / Classroom Name (Optional)</label>
-            <input
-              type="text"
-              value={formData.roomName}
-              onChange={(e) => setFormData({ ...formData, roomName: e.target.value })}
-              className="w-full bg-gray-900 border border-emerald-500/30 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. Room 1 A Block"
-            />
-          </div>
 
           <div>
             <label className="block text-gray-400 mb-1">Description</label>

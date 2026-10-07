@@ -17,6 +17,7 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
 import AdminProfile from './pages/AdminProfile';
+import BuildingDesigner from './pages/BuildingDesigner';
 
 function ProtectedLayout() {
   const { token, loading } = useAuth();
@@ -52,6 +53,7 @@ function ProtectedLayout() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin-profile" element={<AdminProfile />} />
+            <Route path="/designer" element={<BuildingDesigner />} />
           </Routes>
         </main>
       </div>
