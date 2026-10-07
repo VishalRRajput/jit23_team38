@@ -48,6 +48,25 @@ const locationSchema = new mongoose.Schema({
     ref: 'Geofence',
     default: null
   },
+  isIndoor: {
+    type: Boolean,
+    default: false
+  },
+  roomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Room',
+    default: null
+  },
+  floorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Floor',
+    default: null
+  },
+  buildingId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Building',
+    default: null
+  },
   scannedWifi: [
     {
       ssid: String,

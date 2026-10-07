@@ -1,6 +1,4 @@
-import http from 'http';
-
-const API_URL = 'http://localhost:5000/api/location';
+const API_URL = process.env.API_URL || 'http://localhost:5000/api/location';
 
 // Base coordinates: Corporate HQ (San Francisco)
 const CENTER_LAT = 37.774929;
@@ -74,35 +72,24 @@ const sendTelemetry = (device) => {
     ]
   });
 
-  const req = http.request(
-    API_URL,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
+  fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
     },
-    (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          console.log(`[ESP32 Simulator] Sent telemetry for ${device.deviceId} (${device.name}): Geofence=${parsed.isInsideGeofence}, Event=${parsed.eventTriggered || 'NONE'}`);
-        } catch (e) {
-          console.log(`[ESP32 Simulator] Posted payload for ${device.deviceId}`);
-        }
-      });
+    body: payload
+  })
+  .then(async (res) => {
+    try {
+      const parsed = await res.json();
+      console.log(`[ESP32 Simulator] Sent telemetry for ${device.deviceId} (${device.name}): Geofence=${parsed.isInsideGeofence}, Event=${parsed.eventTriggered || 'NONE'}`);
+    } catch (e) {
+      console.log(`[ESP32 Simulator] Posted payload for ${device.deviceId} (HTTP ${res.status})`);
     }
-  );
-
-  req.on('error', (err) => {
+  })
+  .catch((err) => {
     console.error(`[Simulator Error] Failed to post telemetry: ${err.message}`);
   });
-
-  req.write(payload);
-  req.end();
 };
 
 console.log('================================================================');

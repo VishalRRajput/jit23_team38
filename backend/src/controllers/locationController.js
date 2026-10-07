@@ -1,5 +1,6 @@
 import { Location } from '../models/Location.js';
 import { Employee } from '../models/Employee.js';
+import { Room } from '../models/Room.js';
 import { processGeofenceEvaluation } from '../services/geofenceService.js';
 import { emitEvent } from '../config/socket.js';
 
@@ -24,20 +25,36 @@ export const postLocationData = async (req, res) => {
       });
     }
 
+    console.log(`[LocationController] Received payload from ${deviceId}. Scanned WiFi:`, JSON.stringify(scannedWifi));
+
     // Find employee linked to this ESP32 deviceId
     let employee = await Employee.findOne({ deviceId });
     if (!employee) {
-      // Auto-register demo hardware assignment if not mapped
-      employee = await Employee.create({
-        employeeId: `EMP-${deviceId.replace(/[^0-9]/g, '') || '1001'}`,
-        name: `ESP32 Operator (${deviceId})`,
-        department: 'Field Engineering',
-        designation: 'Hardware Specialist',
-        email: `${deviceId.toLowerCase()}@company.com`,
-        phone: '+1 (555) 992-1004',
-        deviceId,
-        status: 'Active'
-      });
+      if (deviceId === 'ESP32_EMP_1001') {
+        employee = await Employee.create({
+          employeeId: 'EMP-1001',
+          name: 'Alex Rivera',
+          department: 'Engineering',
+          designation: 'Senior IoT Architect',
+          email: 'alex.rivera@company.com',
+          phone: '+1 (555) 234-5678',
+          deviceId: 'ESP32_EMP_1001',
+          status: 'Active',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200'
+        });
+      } else {
+        // Auto-register demo hardware assignment if not mapped
+        employee = await Employee.create({
+          employeeId: `EMP-${deviceId.replace(/[^0-9]/g, '') || '1001'}`,
+          name: `ESP32 Operator (${deviceId})`,
+          department: 'Field Engineering',
+          designation: 'Hardware Specialist',
+          email: `${deviceId.toLowerCase()}@company.com`,
+          phone: '+1 (555) 992-1004',
+          deviceId,
+          status: 'Active'
+        });
+      }
     }
 
     // Evaluate geofence & hybrid WiFi verification
@@ -47,6 +64,64 @@ export const postLocationData = async (req, res) => {
       scannedWifi,
       sosAlert
     });
+
+    // Indoor Room Detection Logic
+    let isIndoor = false;
+    let roomId = null;
+    let floorId = null;
+    let buildingId = null;
+
+    if (scannedWifi && scannedWifi.length > 0) {
+      const allRooms = await Room.find().populate('floorId');
+      
+      // Basic matching: find a room where scanned wifi matches
+      let bestRoom = null;
+      let highestPriority = -1;
+      let bestRoomRssi = -999;
+
+      for (const room of allRooms) {
+        if (room.wifiFingerprints && room.wifiFingerprints.length > 0) {
+          for (const fp of room.wifiFingerprints) {
+            const matchedWifi = scannedWifi.find(w => w.bssid.toLowerCase() === fp.bssid.toLowerCase());
+            if (matchedWifi) {
+              // Check RSSI range if defined
+              const minRssi = fp.rssiRange?.min || -100;
+              const maxRssi = fp.rssiRange?.max || 0;
+              
+              if (matchedWifi.rssi >= minRssi && matchedWifi.rssi <= maxRssi) {
+                // If priority is higher, OR if priority is equal but the signal is stronger (closer)
+                if (!bestRoom || (fp.priority || 1) > highestPriority || ((fp.priority || 1) === highestPriority && matchedWifi.rssi > bestRoomRssi)) {
+                  bestRoom = room;
+                  highestPriority = fp.priority || 1;
+                  bestRoomRssi = matchedWifi.rssi;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      if (bestRoom) {
+        isIndoor = true;
+        roomId = bestRoom._id;
+        floorId = bestRoom.floorId?._id;
+        buildingId = bestRoom.floorId?.buildingId;
+      }
+    }
+
+    // Determine current status string
+    let newStatus = 'Out of Office';
+    if (isIndoor && roomId) {
+      const roomDoc = await Room.findById(roomId);
+      newStatus = `Inside ${roomDoc?.name || 'Room'}`;
+    } else if (geofenceResult.isInside) {
+      newStatus = `Inside ${geofenceResult.matchedGeofence?.officeName || 'Campus'}`;
+    }
+
+    // Update Employee record with latest status and lastSeen
+    employee.currentStatus = newStatus;
+    employee.lastSeen = new Date();
+    await employee.save();
 
     // Save Location Log Point
     const locationRecord = await Location.create({
@@ -61,8 +136,12 @@ export const postLocationData = async (req, res) => {
       sosAlert: Boolean(sosAlert),
       isInsideGeofence: geofenceResult.isInside,
       geofenceId: geofenceResult.matchedGeofence?._id || null,
+      isIndoor,
+      roomId,
+      floorId,
+      buildingId,
       scannedWifi,
-      verificationMethod: geofenceResult.verificationMethod,
+      verificationMethod: isIndoor ? 'WIFI_BSSID' : geofenceResult.verificationMethod,
       timestamp: new Date()
     });
 
@@ -79,7 +158,11 @@ export const postLocationData = async (req, res) => {
       currentStatus: employee.currentStatus,
       isInsideGeofence: geofenceResult.isInside,
       geofenceName: geofenceResult.matchedGeofence?.officeName || 'Out of Office',
-      verificationMethod: geofenceResult.verificationMethod,
+      isIndoor,
+      roomId,
+      floorId,
+      buildingId,
+      verificationMethod: isIndoor ? 'WIFI_BSSID' : geofenceResult.verificationMethod,
       timestamp: locationRecord.timestamp
     });
 

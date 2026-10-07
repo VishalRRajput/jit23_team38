@@ -16,6 +16,8 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import aiAnalyticsRoutes from './routes/aiAnalyticsRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import buildingRoutes from './routes/buildingRoutes.js';
+import { ensureInitialData } from './config/seedDefaults.js';
 
 dotenv.config();
 
@@ -54,6 +56,17 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/ai-analytics', aiAnalyticsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/buildings', buildingRoutes);
+
+// Root endpoint for Render health checks and quick status verification
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ONLINE',
+    system: 'WiFi & GPS Employee Tracking System Backend API',
+    version: '1.0.0',
+    health: '/api/health'
+  });
+});
 
 // System Health Check
 app.get('/api/health', (req, res) => {
@@ -63,6 +76,21 @@ app.get('/api/health', (req, res) => {
     version: '1.0.0',
     timestamp: new Date().toISOString()
   });
+});
+
+// Safe database auto-seed trigger (accessible directly via browser without Render shell)
+app.all(['/api/seed', '/seed'], async (req, res) => {
+  try {
+    await ensureInitialData();
+    const count = await Employee.countDocuments();
+    res.json({
+      success: true,
+      message: `Database verified and initialized successfully. Total employees: ${count}`,
+      employeeCount: count
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // Central Error Handler
@@ -124,13 +152,13 @@ setInterval(async () => {
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 =========================================================
   🚀 EMPLOYEE TRACKING SYSTEM BACKEND SERVER ONLINE
-  📡 HTTP Server:  http://localhost:${PORT}
-  🔌 Socket.IO:   http://localhost:${PORT}
-  📍 REST API:     http://localhost:${PORT}/api/location
+  📡 HTTP Server:  http://0.0.0.0:${PORT}
+  🔌 Socket.IO:   http://0.0.0.0:${PORT}
+  📍 REST API:     http://0.0.0.0:${PORT}/api/location
 =========================================================
   `);
 });

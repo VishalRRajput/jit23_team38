@@ -9,10 +9,17 @@
  * =================================================================================
  */
 
+#include "soc/rtc_cntl_reg.h"
+#include "soc/soc.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
 #include <HardwareSerial.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
+
+// HTTP/HTTPS Network Clients
+WiFiClient plainClient;
+WiFiClientSecure secureClient;
 
 // --- HARDWARE PIN DEFINITIONS ---
 #define GPS_RX_PIN 16    // ESP32 RX2 connected to NEO-6M TX
@@ -25,7 +32,7 @@ const char *WIFI_SSID = "Vishal";         // Target WiFi SSID
 const char *WIFI_PASSWORD = "vishu1211";  // Target WiFi Password
 const char *DEVICE_ID = "ESP32_EMP_1001"; // Unique hardware identifier
 const char *SERVER_URL =
-    "http://192.168.1.100:5000/api/location"; // Backend REST Endpoint
+    "http://7f68bf5894f029.lhr.life/api/location"; // Backend REST Endpoint
 
 const unsigned long POST_INTERVAL_MS = 5000; // Send location every 5 seconds
 unsigned long lastPostTime = 0;
@@ -54,7 +61,11 @@ void sendLocationPayload();
 String scanAmbientWiFiBSSIDs();
 
 void setup() {
+  WRITE_PERI_REG(
+      RTC_CNTL_BROWN_OUT_REG,
+      0); // Disable brownout detector to prevent crash on WiFi startup
   Serial.begin(115200);
+  secureClient.setInsecure(); // Allow connections to cloud HTTPS services (e.g. Render)
   setupHardware();
   connectWiFi();
   Serial.println(
@@ -90,6 +101,10 @@ void connectWiFi() {
   Serial.print("[WiFi] Connecting to: ");
   Serial.println(WIFI_SSID);
   WiFi.mode(WIFI_STA);
+  // CRITICAL FIX: Lower the WiFi transmit power to stop the massive current
+  // spike causing the Brownout! Default is WIFI_POWER_19_5dBm. We lower it
+  // to 8.5dBm.
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   int attempts = 0;
@@ -192,8 +207,14 @@ void sendLocationPayload() {
   }
 
   HTTPClient http;
-  http.begin(SERVER_URL);
+  if (strncmp(SERVER_URL, "https://", 8) == 0) {
+    http.begin(secureClient, SERVER_URL);
+  } else {
+    http.begin(plainClient, SERVER_URL);
+  }
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("Bypass-Tunnel-Reminder",
+                 "true"); // Prevent localtunnel block page
 
   StaticJsonDocument<2048> payloadDoc;
   payloadDoc["deviceId"] = DEVICE_ID;
@@ -206,7 +227,8 @@ void sendLocationPayload() {
   // Scan ambient WiFi BSSIDs for indoor presence double-verification
   int n = WiFi.scanNetworks();
   JsonArray wifiArray = payloadDoc.createNestedArray("scannedWifi");
-  // Send up to 12 networks instead of just 4 to guarantee the Home WiFi is caught!
+  // Send up to 12 networks instead of just 4 to guarantee the Home WiFi is
+  // caught!
   for (int i = 0; i < min(n, 12); ++i) {
     JsonObject ap = wifiArray.createNestedObject();
     ap["ssid"] = WiFi.SSID(i);
