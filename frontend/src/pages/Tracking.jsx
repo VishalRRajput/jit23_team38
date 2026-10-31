@@ -79,20 +79,13 @@ export default function Tracking() {
   const selectedEmployee = employees.find(e => e.employeeId === selectedEmpId);
   const liveLocation = latestLocations[selectedEmpId] || historyLogs[0];
 
-  // Auto-switch view based on indoor/outdoor status
+  // Synchronize room selection if employee is indoors and no room is manually focused
   useEffect(() => {
-    if (liveLocation) {
-      if (liveLocation.isIndoor && viewMode !== 'indoor') {
-        setViewMode('indoor');
-        if (liveLocation.roomId) {
-          const room = rooms.find(r => r._id === liveLocation.roomId);
-          if (room) setSelectedRoom(room);
-        }
-      } else if (!liveLocation.isIndoor && viewMode !== 'outdoor') {
-        setViewMode('outdoor');
-      }
+    if (liveLocation?.isIndoor && liveLocation.roomId && !selectedRoom) {
+      const room = rooms.find(r => r._id === liveLocation.roomId);
+      if (room) setSelectedRoom(room);
     }
-  }, [liveLocation, rooms]);
+  }, [liveLocation?.roomId, liveLocation?.isIndoor, rooms, selectedRoom]);
 
   const centerPos = liveLocation && !liveLocation.isIndoor
     ? [liveLocation.latitude, liveLocation.longitude]
@@ -159,11 +152,6 @@ export default function Tracking() {
                     key={emp.employeeId}
                     onClick={() => {
                       setSelectedEmpId(emp.employeeId);
-                      if (latestLoc?.isIndoor) {
-                        setViewMode('indoor');
-                      } else if (latestLoc) {
-                        setViewMode('outdoor');
-                      }
                     }}
                     className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
                       selectedEmpId === emp.employeeId
